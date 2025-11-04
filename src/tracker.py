@@ -8,7 +8,7 @@ class PerformanceTracker:
     
     def record_performance(self, puzzle, user_answer, correct_answer, is_correct, time_taken, difficulty):
         """
-        Record performance for a single problem
+        Record performance for a single problem (Console version)
         
         Args:
             puzzle (str): The problem string (e.g., "5 + 3")
@@ -33,6 +33,59 @@ class PerformanceTracker:
         if self.last_difficulty is not None and self.last_difficulty != difficulty:
             self.difficulty_changes += 1
         self.last_difficulty = difficulty
+    
+    def record_attempt(self, puzzle, user_answer, correct_answer, is_correct, time_taken, difficulty):
+        """
+        Record performance for a single problem (Streamlit version - same as record_performance)
+        
+        Args:
+            puzzle (str): The problem string
+            user_answer (float): User's answer
+            correct_answer (float): Correct answer
+            is_correct (bool): Whether answer was correct
+            time_taken (float): Time in seconds
+            difficulty (int): Difficulty level (1-3)
+        """
+        # Just call record_performance - they do the same thing
+        self.record_performance(puzzle, user_answer, correct_answer, is_correct, time_taken, difficulty)
+    
+    def calculate_accuracy(self):
+        """
+        Calculate current accuracy percentage
+        
+        Returns:
+            float: Accuracy percentage (0-100)
+        """
+        if not self.history:
+            return 0.0
+        
+        correct_count = sum(1 for r in self.history if r['correct'])
+        return (correct_count / len(self.history)) * 100
+    
+    def calculate_avg_time(self):
+        """
+        Calculate average response time
+        
+        Returns:
+            float: Average time in seconds
+        """
+        if not self.history:
+            return 0.0
+        
+        total_time = sum(r['time'] for r in self.history)
+        return total_time / len(self.history)
+    
+    def get_total_problems(self):
+        """Get total number of problems attempted"""
+        return len(self.history)
+    
+    def get_correct_count(self):
+        """Get number of correct answers"""
+        return sum(1 for r in self.history if r['correct'])
+    
+    def get_incorrect_count(self):
+        """Get number of incorrect answers"""
+        return len(self.history) - self.get_correct_count()
     
     def get_history(self):
         """Get complete performance history"""
@@ -101,6 +154,41 @@ class PerformanceTracker:
             'trend': trend
         }
     
+    def get_difficulty_distribution(self):
+        """
+        Get distribution of problems by difficulty
+        
+        Returns:
+            dict: Count of problems at each difficulty level
+        """
+        distribution = {1: 0, 2: 0, 3: 0}
+        for record in self.history:
+            if record['difficulty'] in distribution:
+                distribution[record['difficulty']] += 1
+        return distribution
+    
+    def get_performance_by_difficulty(self):
+        """
+        Get performance statistics by difficulty level
+        
+        Returns:
+            dict: Performance data for each difficulty
+        """
+        perf_by_diff = {
+            1: {'correct': 0, 'total': 0}, 
+            2: {'correct': 0, 'total': 0}, 
+            3: {'correct': 0, 'total': 0}
+        }
+        
+        for record in self.history:
+            diff = record['difficulty']
+            if diff in perf_by_diff:
+                perf_by_diff[diff]['total'] += 1
+                if record['correct']:
+                    perf_by_diff[diff]['correct'] += 1
+        
+        return perf_by_diff
+    
     def get_summary(self):
         """
         Get comprehensive session summary
@@ -109,7 +197,27 @@ class PerformanceTracker:
             dict: Complete performance summary
         """
         if not self.history:
-            return {}
+            return {
+                'total_problems': 0,
+                'correct': 0,
+                'incorrect': 0,
+                'accuracy': 0.0,
+                'avg_time': 0.0,
+                'difficulty_distribution': {1: 0, 2: 0, 3: 0},
+                'difficulty_changes': 0,
+                'final_difficulty': 1,
+                'recommended_difficulty': 1,
+                'performance_by_difficulty': {
+                    1: {'correct': 0, 'total': 0},
+                    2: {'correct': 0, 'total': 0},
+                    3: {'correct': 0, 'total': 0}
+                },
+                'model_info': {
+                    'type': 'Logistic Regression',
+                    'predictions_made': 0,
+                    'last_confidence': 0.0
+                }
+            }
         
         total_problems = len(self.history)
         correct = sum(1 for r in self.history if r['correct'])
@@ -120,20 +228,10 @@ class PerformanceTracker:
         avg_time = total_time / total_problems
         
         # Difficulty distribution
-        difficulty_dist = {1: 0, 2: 0, 3: 0}
-        for record in self.history:
-            difficulty_dist[record['difficulty']] += 1
+        difficulty_dist = self.get_difficulty_distribution()
         
         # Performance by difficulty
-        perf_by_diff = {1: {'correct': 0, 'total': 0}, 
-                        2: {'correct': 0, 'total': 0}, 
-                        3: {'correct': 0, 'total': 0}}
-        
-        for record in self.history:
-            diff = record['difficulty']
-            perf_by_diff[diff]['total'] += 1
-            if record['correct']:
-                perf_by_diff[diff]['correct'] += 1
+        perf_by_diff = self.get_performance_by_difficulty()
         
         # Final difficulty and recommendation
         final_difficulty = self.history[-1]['difficulty']
@@ -214,6 +312,10 @@ if __name__ == "__main__":
     
     print("Testing Performance Tracker\n")
     print("=" * 50)
+    print(f"\nTotal Problems: {tracker.get_total_problems()}")
+    print(f"Correct: {tracker.get_correct_count()}")
+    print(f"Accuracy: {tracker.calculate_accuracy():.1f}%")
+    print(f"Average Time: {tracker.calculate_avg_time():.1f}s")
     print("\nRecent Performance:")
     print(tracker.get_recent_performance())
     print("\nSummary:")
